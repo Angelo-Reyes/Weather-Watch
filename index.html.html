@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>SkyCast Pro | 5-Day Forecast & Weather Map</title>
+  <!-- Google Fonts + Leaflet CSS for map -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(145deg, #0b1a2e 0%, #09101c 100%);
+      min-height: 100vh;
+      padding: 1.5rem;
+    }
+
+    .app-container {
+      max-width: 1300px;
+      margin: 0 auto;
+    }
+
+    /* main glass card */
+    .weather-card {
+      background: rgba(22, 34, 48, 0.7);
+      backdrop-filter: blur(14px);
+      border-radius: 2rem;
+      padding: 1.5rem 2rem;
+      box-shadow: 0 25px 45px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+      color: #eef4ff;
+      margin-bottom: 1.5rem;
+    }
+
+    /* header area */
+    .header-flex {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      flex-wrap: wrap;
+      margin-bottom: 0.3rem;
+    }
+
+    h1 {
+      font-size: 1.9rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #ffffff, #7ab3ff);
+      background-clip: text;
+      -webkit-background-clip: text;
+      color: transparent;
+      letter-spacing: -0.5px;
+    }
+
+    .badge {
+      font-size: 0.7rem;
+      background: rgba(59,130,246,0.3);
+      padding: 4px 12px;
+      border-radius: 40px;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .sub {
+      font-size: 0.85rem;
+      opacity: 0.7;
+      margin-bottom: 1.2rem;
+      border-left: 3px solid #3b82f6;
+      padding-left: 0.7rem;
+    }
+
+    /* search */
+    .search-container {
+      display: flex;
+      gap: 0.7rem;
+      margin-bottom: 1.8rem;
+      flex-wrap: wrap;
+    }
+
+    .search-box {
+      flex: 1;
+      display: flex;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 60px;
+      align-items: center;
+      padding: 0.2rem 0.2rem 0.2rem 1.2rem;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      transition: all 0.2s;
+    }
+
+    .search-box:focus-within {
+      border-color: #3b82f6;
+      background: rgba(255, 255, 255, 0.15);
+      box-shadow: 0 0 0 2px rgba(59,130,246,0.3);
+    }
+
+    #cityInput {
+      background: transparent;
+      border: none;
+      padding: 0.9rem 0;
+      font-size: 1rem;
+      width: 100%;
+      outline: none;
+      color: white;
+      font-weight: 500;
+    }
+
+    #cityInput::placeholder {
+      color: #bbd4ff;
+      opacity: 0.7;
+    }
+
+    button {
+      background: #3b82f6;
+      border: none;
+      padding: 0 1.5rem;
+      border-radius: 50px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: white;
+      cursor: pointer;
+      transition: 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    button:hover {
+      background: #2563eb;
+      transform: scale(0.97);
+    }
+
+    /* current weather styling */
+    .current-weather {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.8rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid rgba(255,255,255,0.15);
+    }
+
+    .temp-big {
+      font-size: 3.2rem;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .weather-icon-large {
+      font-size: 4rem;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+    }
+
+    .details-mini {
+      display: flex;
+      gap: 1.2rem;
+      flex-wrap: wrap;
+    }
+
+    .detail-chip {
+      background: rgba(255,255,255,0.08);
+      border-radius: 2rem;
+      padding: 0.4rem 1rem;
+      font-size: 0.85rem;
+    }
+
+    /* 5-day forecast grid */
+    .forecast-section {
+      margin-top: 0.5rem;
+    }
+
+    .section-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .forecast-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+      gap: 0.8rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .forecast-day {
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 1.5rem;
+      padding: 0.8rem 0.4rem;
+      text-align: center;
+      backdrop-filter: blur(4px);
+      transition: 0.1s;
+    }
+
+    .forecast-dayname {
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    .forecast-icon {
+      font-size: 2rem;
+      margin: 6px 0;
+    }
+    .forecast-temp {
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+    .forecast-desc {
+      font-size: 0.7rem;
+      opacity: 0.8;
+      text-transform: capitalize;
+    }
+
+    /* map container */
+    .map-section {
+      margin-top: 0.5rem;
+    }
+    #weatherMap {
+      height: 300px;
+      width: 100%;
+      border-radius: 1.5rem;
+      overflow: hidden;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.2);
+      background: #1e2a3a;
+    }
+
+    .error-msg, .loading-state {
+      text-align: center;
+      padding: 2rem;
+      background: rgba(0,0,0,0.3);
+      border-radius: 1.5rem;
+    }
+    .spinner {
+      width: 24px;
+      height: 24px;
+      border: 3px solid rgba(255,255,255,0.2);
+      border-top: 3px solid #3b82f6;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .footer-note {
+      text-align: center;
+      font-size: 0.7rem;
+      opacity: 0.5;
+      margin-top: 1.5rem;
+    }
+
+    @media (max-width: 700px) {
+      .weather-card { padding: 1.2rem; }
+      .temp-big { font-size: 2.5rem; }
+      .forecast-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+<div class="app-container">
+  <div class="weather-card">
+    <div class="header-flex">
+      <h1>⛅ Weather Watch</h1>
+    </div>
+    <div class="sub">real-time weather • daily outlook • interactive location map</div>
+
+    <div class="search-container">
+      <div class="search-box">
+        <span>📍</span>
+        <input type="text" id="cityInput" placeholder="City name... e.g., Manila, Legazpi, Cebu" value="Manila, Philippines">
+      </div>
+      <button id="searchBtn">🔍 Search</button>
+    </div>
+
+    <!-- current weather summary -->
+    <div id="currentWeatherPanel">
+      <div class="loading-state"><div class="spinner"></div> Loading weather...</div>
+    </div>
+
+    <!-- 5-day forecast panel -->
+    <div id="forecastPanel" class="forecast-section" style="margin-top: 1rem;"></div>
+  </div>
+
+  <!-- map card -->
+  <div class="weather-card map-section">
+    <div class="section-title">🗺️ Interactive Weather Map</div>
+    <div id="weatherMap"></div>
+  </div>
+</div>
+
+<script>
+
+  // DOM elements
+  const cityInput = document.getElementById('cityInput');
+  const searchBtn = document.getElementById('searchBtn');
+  const currentPanel = document.getElementById('currentWeatherPanel');
+  const forecastPanel = document.getElementById('forecastPanel');
+  let mapInstance = null;       // leaflet map reference
+  let currentMarker = null;     // marker for selected city
+  
+  // Helper: show loading / error
+  function setLoading(panel, message = "Fetching data...") {
+    if (panel === 'current') {
+      currentPanel.innerHTML = `<div class="loading-state"><div class="spinner"></div> ${message}</div>`;
+    } else if (panel === 'forecast') {
+      forecastPanel.innerHTML = `<div class="loading-state"><div class="spinner"></div> Loading forecast...</div>`;
+    }
+  }
+  
+  function showError(panel, msg) {
+    if (panel === 'current') {
+      currentPanel.innerHTML = `<div class="error-msg">⚠️ ${msg}<br><span style="font-size:0.8rem;">Check city name or try again.</span></div>`;
+    } else if (panel === 'forecast') {
+      forecastPanel.innerHTML = `<div class="error-msg">⚠️ ${msg}</div>`;
+    }
+  }
+  
+  // get coordinates from city name (Open-Meteo Geocoding)
+  async function getCoordinates(cityName) {
+    const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=en`;
+    const resp = await fetch(geoUrl);
+    const data = await resp.json();
+    if (!data.results || data.results.length === 0) {
+      throw new Error(`City "${cityName}" not found.`);
+    }
+    const result = data.results[0];
+    return {
+      lat: result.latitude,
+      lon: result.longitude,
+      name: result.name,
+      country: result.country,
+      admin1: result.admin1 || ''
+    };
+  }
+  
+  // fetch current weather + daily forecast (5 days)
+  async function fetchFullWeather(lat, lon) {
+    // Request current weather + daily (temperature, weathercode, windspeed, humidity etc)
+    // daily: temperature_2m_max, temperature_2m_min, weathercode, wind_speed_10m_max
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,pressure_msl,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min,wind_speed_10m_max&timezone=auto&forecast_days=6`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Weather API error: ${response.status}`);
+    const data = await response.json();
+    if (!data.current || !data.daily) throw new Error("Incomplete weather data");
+    return data;
+  }
+  
+  // Map weather code to icon & description (same mapping as before + daily)
+  function getWeatherIconAndDesc(code, isDay = 1) {
+    const map = {
+      0: { desc: "Clear sky", dayIcon: "☀️", nightIcon: "🌙" },
+      1: { desc: "Mainly clear", dayIcon: "🌤️", nightIcon: "☁️🌙" },
+      2: { desc: "Partly cloudy", dayIcon: "⛅", nightIcon: "☁️" },
+      3: { desc: "Overcast", dayIcon: "☁️", nightIcon: "☁️" },
+      45: { desc: "Foggy", dayIcon: "🌫️", nightIcon: "🌫️" },
+      48: { desc: "Rime fog", dayIcon: "🌫️", nightIcon: "🌫️" },
+      51: { desc: "Light drizzle", dayIcon: "🌦️", nightIcon: "🌧️" },
+      53: { desc: "Moderate drizzle", dayIcon: "🌧️", nightIcon: "🌧️" },
+      55: { desc: "Dense drizzle", dayIcon: "🌧️", nightIcon: "🌧️" },
+      56: { desc: "Freezing drizzle", dayIcon: "❄️🌧️", nightIcon: "❄️🌧️" },
+      57: { desc: "Heavy freezing drizzle", dayIcon: "❄️🌧️", nightIcon: "❄️🌧️" },
+      61: { desc: "Light rain", dayIcon: "🌦️", nightIcon: "🌧️" },
+      63: { desc: "Moderate rain", dayIcon: "🌧️", nightIcon: "🌧️" },
+      65: { desc: "Heavy rain", dayIcon: "🌧️💧", nightIcon: "🌧️💧" },
+      66: { desc: "Light freezing rain", dayIcon: "❄️🌧️", nightIcon: "❄️🌧️" },
+      67: { desc: "Heavy freezing rain", dayIcon: "❄️🌧️", nightIcon: "❄️🌧️" },
+      71: { desc: "Light snow", dayIcon: "🌨️", nightIcon: "🌨️" },
+      73: { desc: "Moderate snow", dayIcon: "❄️", nightIcon: "❄️" },
+      75: { desc: "Heavy snow", dayIcon: "❄️❄️", nightIcon: "❄️❄️" },
+      77: { desc: "Snow grains", dayIcon: "🌨️", nightIcon: "🌨️" },
+      80: { desc: "Light showers", dayIcon: "☔", nightIcon: "☔" },
+      81: { desc: "Moderate showers", dayIcon: "☔", nightIcon: "☔" },
+      82: { desc: "Violent showers", dayIcon: "⛈️", nightIcon: "⛈️" },
+      85: { desc: "Light snow showers", dayIcon: "🌨️", nightIcon: "🌨️" },
+      86: { desc: "Heavy snow showers", dayIcon: "❄️🌨️", nightIcon: "❄️🌨️" },
+      95: { desc: "Thunderstorm", dayIcon: "⛈️", nightIcon: "⛈️" },
+      96: { desc: "Thunderstorm+hail", dayIcon: "⛈️", nightIcon: "⛈️" },
+      99: { desc: "Severe thunderstorm", dayIcon: "⛈️💥", nightIcon: "⛈️💥" }
+    };
+    const cond = map[code] || { desc: "Variable", dayIcon: "🌡️", nightIcon: "🌡️" };
+    const icon = isDay === 1 ? cond.dayIcon : cond.nightIcon;
+    return { description: cond.desc, icon };
+  }
+  
+  // format readable day name from date string (YYYY-MM-DD)
+  function getDayName(dateStr) {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const d = new Date(dateStr);
+    return days[d.getDay()];
+  }
+  
+  // render current weather panel
+  function renderCurrentWeather(geo, weatherData) {
+    const current = weatherData.current;
+    const temp = Math.round(current.temperature_2m);
+    const feels = Math.round(current.apparent_temperature);
+    const humidity = current.relative_humidity_2m;
+    const wind = Math.round(current.wind_speed_10m);
+    const pressure = Math.round(current.pressure_msl);
+    const weatherCode = current.weather_code;
+    const isDay = current.is_day;
+    const { description, icon } = getWeatherIconAndDesc(weatherCode, isDay);
+    const windUnit = weatherData.current_units?.wind_speed_10m || "km/h";
+    const tempUnit = weatherData.current_units?.temperature_2m || "°C";
+    const locationStr = geo.admin1 ? `${geo.name}, ${geo.admin1}` : geo.name;
+    
+    const html = `
+      <div class="current-weather">
+        <div>
+          <div style="font-size: 1.5rem; font-weight:600;">${locationStr} <span style="font-size:0.9rem;">${geo.country}</span></div>
+          <div style="font-size:0.8rem; opacity:0.7; margin-top: 4px;">${new Date().toLocaleDateString(undefined, { weekday:'long', month:'long', day:'numeric' })}</div>
+          <div class="temp-big">${temp}${tempUnit}</div>
+          <div style="margin-top: 5px;">${description}</div>
+        </div>
+        <div class="weather-icon-large">${icon}</div>
+        <div class="details-mini">
+          <div class="detail-chip">🌡️ Feels ${feels}${tempUnit}</div>
+          <div class="detail-chip">💧 ${humidity}%</div>
+          <div class="detail-chip">🌬️ ${wind} ${windUnit}</div>
+          <div class="detail-chip">⏲️ ${pressure} hPa</div>
+        </div>
+      </div>
+    `;
+    currentPanel.innerHTML = html;
+  }
+  
+  // render 5-day forecast (skip day 0 which is today? Actually daily includes today + next 5 days. We'll show days 1-5 (forecast))
+  function renderForecast(weatherData) {
+    const daily = weatherData.daily;
+    if (!daily || !daily.time || daily.time.length === 0) {
+      forecastPanel.innerHTML = `<div class="error-msg">Forecast data unavailable</div>`;
+      return;
+    }
+    // daily.time[0] is today, we want next 5 days (index 1 to 5)
+    const forecastDays = daily.time.slice(1, 6);
+    const maxTemps = daily.temperature_2m_max.slice(1, 6);
+    const minTemps = daily.temperature_2m_min.slice(1, 6);
+    const weatherCodes = daily.weather_code.slice(1, 6);
+    const winds = daily.wind_speed_10m_max ? daily.wind_speed_10m_max.slice(1, 6) : [];
+    
+    let forecastHtml = `<div class="section-title">📅 5-Day Forecast</div><div class="forecast-grid">`;
+    for (let i = 0; i < forecastDays.length; i++) {
+      const dayName = getDayName(forecastDays[i]);
+      const maxT = Math.round(maxTemps[i]);
+      const minT = Math.round(minTemps[i]);
+      const code = weatherCodes[i];
+      const { icon } = getWeatherIconAndDesc(code, 1); // use day icon for forecast
+      const windVal = winds[i] ? Math.round(winds[i]) : '—';
+      const descShort = getWeatherIconAndDesc(code, 1).description.split(' ')[0];
+      forecastHtml += `
+        <div class="forecast-day">
+          <div class="forecast-dayname">${dayName}</div>
+          <div class="forecast-icon">${icon}</div>
+          <div class="forecast-temp">${maxT}° / ${minT}°</div>
+          <div class="forecast-desc">${descShort}</div>
+          <div style="font-size:0.65rem; margin-top:6px;">💨 ${windVal} km/h</div>
+        </div>
+      `;
+    }
+    forecastHtml += `</div>`;
+    forecastPanel.innerHTML = forecastHtml;
+  }
+  
+  // initialize or update leaflet map with new coordinates
+  function updateMap(lat, lon, cityName) {
+    if (mapInstance === null) {
+      // create map if not exists
+      mapInstance = L.map('weatherMap').setView([lat, lon], 8);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; CartoDB',
+        subdomains: 'abcd',
+        maxZoom: 19,
+        minZoom: 3
+      }).addTo(mapInstance);
+    } else {
+      mapInstance.setView([lat, lon], 8);
+    }
+    // remove previous marker if exists
+    if (currentMarker) {
+      mapInstance.removeLayer(currentMarker);
+    }
+    // add new marker with popup
+    currentMarker = L.marker([lat, lon]).addTo(mapInstance)
+      .bindPopup(`<b>${cityName}</b><br>📍 Current weather location`)
+      .openPopup();
+  }
+  
+  // main orchestration: fetch data for city and update all UI
+  async function updateWeatherForCity(cityName) {
+    if (!cityName.trim()) {
+      showError('current', 'Please enter a city name.');
+      return;
+    }
+    // show loading states
+    setLoading('current', `Searching for "${cityName}"...`);
+    setLoading('forecast', 'Loading 5-day forecast...');
+    
+    try {
+      // 1. get coordinates
+      const geo = await getCoordinates(cityName.trim());
+      // 2. fetch weather (current + daily)
+      const weather = await fetchFullWeather(geo.lat, geo.lon);
+      // 3. render current and forecast
+      renderCurrentWeather(geo, weather);
+      renderForecast(weather);
+      // 4. update leaflet map
+      updateMap(geo.lat, geo.lon, geo.name);
+    } catch (err) {
+      console.error(err);
+      showError('current', err.message || 'Failed to load weather data.');
+      forecastPanel.innerHTML = `<div class="error-msg">Forecast unavailable due to location error.</div>`;
+      // fallback map not updated but keep previous or hide?
+    }
+  }
+  
+  // load default city on page load (New York)
+  async function init() {
+    const defaultCity = cityInput.value.trim() || "New York";
+    await updateWeatherForCity(defaultCity);
+  }
+  
+  // Event listeners
+  searchBtn.addEventListener('click', () => {
+    const city = cityInput.value.trim();
+    if (city) updateWeatherForCity(city);
+    else showError('current', 'Please enter a city name');
+  });
+  
+  cityInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      const city = cityInput.value.trim();
+      if (city) updateWeatherForCity(city);
+      else showError('current', 'Enter a city name');
+    }
+  });
+  
+  init();
+</script>
+</body>
+</html>
